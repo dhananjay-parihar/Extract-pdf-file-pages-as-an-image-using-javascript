@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Image Converter</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+<style>
+    .pdf-page-container {
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 19%; /* Adjust the width to fit five pages in a row */
+        margin-right: 1%; /* Add a small margin between pages */
+    }
+
+    .pdf-page {
+        max-width: 100%; /* Adjust the maximum width of the page */
+        height: 200px; /* Adjust the height of the page */
+        display: block;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+    }
+
+    .download-btn {
+        display: block;
+        width: 100%;
+    }
+
+    .form-control {
+        margin-left: 30%;
+        width: 40%;
+    }
+</style>
+
+</head>
+
+<body>
+
+<center><h2>Download PDF page as an Image</h2></center>
+    
+<div class="container">
+    <div class="form-group">
+        <input type="file" class="form-control" id="fileInput" accept=".pdf">
+    </div>
+    <div id="pdfPages" style="display: flex; flex-wrap: wrap; justify-content: center;"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+<script>
+    // initialize PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js";
+
+    // get file input element
+    const fileInput = document.getElementById('fileInput');
+
+    // add event listener to file input
+    fileInput.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+
+ // Extract the original PDF file name without extension
+    const pdfFileName = file.name.replace(/\.[^/.]+$/, "");
+
+        // read file with FileReader
+        const reader = new FileReader();
+
+        reader.onload = function () {
+            const typedArray = new Uint8Array(this.result);
+
+            // load PDF with PDF.js
+            pdfjsLib.getDocument(typedArray).promise.then(function (pdf) {
+                const numPages = pdf.numPages;
+
+                // create a container for the pages
+                const pdfPagesContainer = document.getElementById('pdfPages');
+
+                // create img elements and download buttons for each page
+                for (let i = 1; i <= numPages; i++) {
+                    const pageContainer = document.createElement('div');
+                    pageContainer.className = 'pdf-page-container';
+
+                    const img = document.createElement('img');
+                    img.className = 'pdf-page';
+                    pageContainer.appendChild(img);
+
+                    const downloadButton = document.createElement('button');
+                    downloadButton.textContent = 'Download Page ' + i +'👆';
+                    downloadButton.className = 'btn btn-primary download-btn';
+                    pageContainer.appendChild(downloadButton);
+
+                    // append the page container to the main container
+                    pdfPagesContainer.appendChild(pageContainer);
+
+                    // display the page
+                    pdf.getPage(i).then(function (page) {
+                        const viewport = page.getViewport({ scale: 2 });
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        const renderContext = {
+                            canvasContext: context,
+                            viewport: viewport,
+                        };
+
+                        page.render(renderContext).promise.then(function () {
+                            img.src = canvas.toDataURL(); // set img source to the canvas data URL
+                        });
+                    });
+
+                    // add event listener to the download button
+                    downloadButton.addEventListener('click', function () {
+                        // convert page to image and download
+                        pdf.getPage(i).then(function (page) {
+                            const canvas = document.createElement('canvas');
+                            const viewport = page.getViewport({ scale: 2 }); // You can adjust the scale factor
+                            const ctx = canvas.getContext('2d');
+                            canvas.width = viewport.width;
+                            canvas.height = viewport.height;
+                            const renderContext = {
+                                canvasContext: ctx,
+                                viewport: viewport,
+                            };
+
+                            page.render(renderContext).promise.then(function () {
+                                canvas.toBlob(function (blob) {
+                                    const link = document.createElement('a');
+                                    link.download = pdfFileName+'-' +'Page' + i + '.jpg';
+                                    link.href = URL.createObjectURL(blob);
+                                    link.click();
+                                }, 'image/jpeg');
+                            });
+                        });
+                    });
+                }
+            });
+        };
+
+        reader.readAsArrayBuffer(file);
+    });
+</script>
+</body>
+</html>
